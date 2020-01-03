@@ -1,0 +1,102 @@
+#!/bin/bash
+
+COMMAND=""
+EXIT_CODES=()
+TIMEOUT=""
+
+print_help() {
+cat << HELP
+  Loops the specified command until it exits with 0 or with one of the specified exit codes.
+  The exit code '0' is implicitly included.
+  Additionally, a timeout value may be supplied. Setting the timeout to '0' has the same effect as not supplying it.
+  Usage: looper <-c command> [-t timeout][-e exit codes]
+
+  Examples:
+    looper "curl https://www.google.com"             -- Calls curl until it exits with 0.
+    looper "wget https://www.google.com" -e "4 5 6"  -- Calls wget until it exits with 0, 4, 5 or 6.
+    looper "ping https://www.google.com" -t 20 -e 1  -- Calls ping until it exits with 0 or 1, or 20 seconds has passed.
+HELP
+}
+
+main() {
+  set_options "$@"
+
+  echo "Command: ${COMMAND}"
+  echo "Timeout: ${TIMEOUT}"
+  echo "Exit codes: ${EXIT_CODES[@]}"
+  echo "Length of exit codes: ${#EXIT_CODES[@]}"
+}
+
+set_options() {
+  while getopts ':c:t:e:h' opt; do
+    case ${opt} in
+      c) COMMAND="$OPTARG" ;;
+      t) TIMEOUT="$OPTARG" ;;
+      e) EXIT_CODES=($OPTARG) ;;
+      h) print_help && exit 1 ;;
+      \?|*) print_help && exit 1 ;;
+    esac
+  done
+
+  exit_on_missing_command
+  set_default_timeout
+  set_default_exit_code
+  prepare_exit_codes
+  validate_numeric_params
+}
+
+exit_on_missing_command() {
+  if [[ -z "${COMMAND}" ]]; then
+    print_help
+    exit 1
+  fi
+}
+
+set_default_timeout() {
+  if [[ -z "${TIMEOUT}" ]]; then
+    TIMEOUT=0
+  fi
+}
+
+set_default_exit_code() {
+  if [[ -z "${EXIT_CODES}" ]]; then
+    EXIT_CODES=(0)
+  fi
+}
+
+prepare_exit_codes() {
+  EXIT_CODES+=(0)
+  EXIT_CODES=($(printf "%s\n" "${EXIT_CODES[@]}" | sort -u))
+}
+
+validate_numeric_params() {
+  if ! is_number "${TIMEOUT}"; then
+    echo "Invalid value '${TIMEOUT}' for timeout."
+    echo "looper: exiting"
+    exit 1
+  fi
+
+  for elem in "${EXIT_CODES[@]}"; do
+    if ! is_number "${elem}"; then
+      echo "Invalid value '${elem}' for exit code."
+      echo "looper: exiting"
+      exit 1
+    fi
+  done
+}
+
+is_number() {
+  re='^(0|[1-9]+[0-9]*){1}$'
+  if [[ $1 =~ $re ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+if [[ "${#BASH_SOURCE[@]}" -eq 1 ]]; then
+    main "$@"
+fi
+
+
+

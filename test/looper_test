@@ -1,0 +1,228 @@
+#!/bin/bash
+
+OUT_DIR="./test_output"
+
+oneTimeSetUp() {
+  if [[ ! -d "${OUT_DIR}" ]]; then
+    mkdir "${OUT_DIR}"
+  fi
+}
+
+oneTimeTearDown() {
+  if [[ -d "${OUT_DIR}" ]]; then
+    rm -rf "${OUT_DIR}"
+  fi
+}
+
+setUp() {
+  source ../looper
+}
+
+tearDown() {
+  if [[ -d "${OUT_DIR}" ]]; then
+    find "${OUT_DIR}" -mindepth 1 -delete
+  fi
+}
+
+test_set_options_help() {
+  # given
+  exit_on_missing_command() {
+    touch "${OUT_DIR}/exit_on_missing_command"
+  }
+  set_default_timeout() {
+    touch "${OUT_DIR}/set_default_timeout"
+  }
+  set_default_exit_code() {
+    touch "${OUT_DIR}/set_default_exit_code"
+  }
+  prepare_exit_codes() {
+    touch "${OUT_DIR}/prepare_exit_codes"
+  }
+  print_help() {
+    touch "${OUT_DIR}/print_help"
+  }
+  validate_numeric_params() {
+    touch "${OUT_DIR}/validate_numeric_params"
+  }
+
+  # when
+  local args=("-h")
+  $(set_options "${args[@]}")
+  local exit_code=$?
+
+  # then
+  assertEquals 1 ${exit_code}
+  assertFileExists "print_help"
+  assertFileDoesNotExist "exit_on_missing_command"
+  assertFileDoesNotExist "set_default_timeout"
+  assertFileDoesNotExist "set_default_exit_code"
+  assertFileDoesNotExist "prepare_exit_codes"
+  assertFileDoesNotExist "validate_numeric_params"
+}
+
+test_set_options() {
+  # given
+  exit_on_missing_command() {
+    touch "${OUT_DIR}/exit_on_missing_command"
+  }
+  set_default_timeout() {
+    touch "${OUT_DIR}/set_default_timeout"
+  }
+  set_default_exit_code() {
+    touch "${OUT_DIR}/set_default_exit_code"
+  }
+  prepare_exit_codes() {
+    touch "${OUT_DIR}/prepare_exit_codes"
+  }
+  validate_numeric_params() {
+    touch "${OUT_DIR}/validate_numeric_params"
+  }
+
+  # when
+  local args=("-c" "ls -l" "-t" "20" "-e" "1 2")
+  set_options "${args[@]}"
+  local exit_codes=$(echo "${EXIT_CODES[@]}")
+
+  # then
+  assertEquals "ls -l" "${COMMAND}"
+  assertEquals 20 "${TIMEOUT}"
+  assertEquals "1 2" "${exit_codes}"
+
+  assertFileExists "exit_on_missing_command"
+  assertFileExists "set_default_timeout"
+  assertFileExists "set_default_exit_code"
+  assertFileExists "prepare_exit_codes"
+  assertFileExists "validate_numeric_params"
+}
+
+test_exit_on_missing_command() {
+  # given
+  print_help() {
+    touch "${OUT_DIR}/print_help"
+  }
+
+  # when
+  local COMMAND=""
+  $(exit_on_missing_command)
+  local exit_code=$?
+
+  # then
+  assertEquals 1 ${exit_code}
+  assertFileExists "print_help"
+}
+
+test_exit_on_missing_command_does_not_exit() {
+  # given
+  print_help() {
+    touch "${OUT_DIR}/print_help"
+  }
+
+  # when
+  local COMMAND="ls -l"
+  $(exit_on_missing_command)
+  local exit_code=$?
+
+  # given
+  assertEquals "0" "${exit_code}"
+  assertFileDoesNotExist "print_help"
+}
+
+test_set_default_timeout() {
+  # given
+  local TIMEOUT=""
+
+  # when
+  set_default_timeout
+
+  # then
+  assertEquals "0" "${TIMEOUT}"
+}
+
+test_set_default_timeout_when_already_set() {
+  # given
+  local TIMEOUT="1"
+
+  # when
+  set_default_timeout
+
+  # then
+  assertEquals "1" "${TIMEOUT}"
+}
+
+test_set_default_exit_code() {
+  # given
+  local EXIT_CODES=()
+
+  # when
+  set_default_exit_code
+  local actual=$(echo "${EXIT_CODES[@]}")
+
+  # then
+  assertEquals "0" "${actual}"
+}
+
+test_set_default_exit_code_when_already_set() {
+  # given
+  local EXIT_CODES=(1)
+
+  # when
+  set_default_exit_code
+  local actual=$(echo "${EXIT_CODES[@]}")
+
+  # then
+  assertEquals "1" "${actual}"
+}
+
+test_prepare_exit_codes_adds_zero() {
+  # given
+  local EXIT_CODES=()
+
+  # when
+  prepare_exit_codes
+  local actual=$(echo "${EXIT_CODES[@]}")
+
+  # then
+  assertEquals "0" "${actual}"
+}
+
+test_prepare_exit_codes_removes_duplicates() {
+  # given
+  local EXIT_CODES=(0 1 2 1)
+
+  # when
+  prepare_exit_codes
+  local actual=$(echo "${EXIT_CODES[@]}")
+
+  # then
+  assertEquals "0 1 2" "${actual}"
+}
+
+test_is_number() {
+  assertTrue "expecting 0 to be a number" "is_number 0"
+  assertTrue "expecting 1 to be a number" "is_number 1"
+  assertTrue "expecting 11 to be a number" "is_number 11"
+  assertTrue "expecting 10 to be a number" "is_number 10"
+  assertTrue "expecting 404 to be a number" "is_number 404"
+
+  assertFalse "expecting 01 not to be a number" "is_number 01"
+  assertFalse "expecting -1 not to be a number" "is_number -1"
+  assertFalse "expecting a not to be a number" "is_number a"
+  assertFalse "expecting abc not to be a number" "is_number abc"
+  assertFalse "expecting '' not to be a number" "is_number ''"
+}
+
+# Assert that the specified file is present
+# in the OUT_DIR directory
+assertFileExists() {
+  local filename="$1"
+  assertTrue "expected file '${filename}' to exist, but it does not" "[ -e ${OUT_DIR}/${filename} ]"
+}
+
+# Assert that the specified file is not present
+# in the OUT_DIR directory
+assertFileDoesNotExist() {
+  local filename="$1"
+  assertTrue "expected file '${filename}' to not exist, but it does" "[ ! -e ${OUT_DIR}/${filename} ]"
+}
+
+source ./shunit2
