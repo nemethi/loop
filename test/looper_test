@@ -26,24 +26,8 @@ tearDown() {
 
 test_set_options_help() {
   # given
-  exit_on_missing_command() {
-    touch "${OUT_DIR}/exit_on_missing_command"
-  }
-  set_default_timeout() {
-    touch "${OUT_DIR}/set_default_timeout"
-  }
-  set_default_exit_code() {
-    touch "${OUT_DIR}/set_default_exit_code"
-  }
-  prepare_exit_codes() {
-    touch "${OUT_DIR}/prepare_exit_codes"
-  }
-  print_help() {
-    touch "${OUT_DIR}/print_help"
-  }
-  validate_numeric_params() {
-    touch "${OUT_DIR}/validate_numeric_params"
-  }
+  mock_validate_options
+  mock_print_help
 
   # when
   local args=("-h")
@@ -53,30 +37,28 @@ test_set_options_help() {
   # then
   assertEquals 1 ${exit_code}
   assertFileExists "print_help"
-  assertFileDoesNotExist "exit_on_missing_command"
-  assertFileDoesNotExist "set_default_timeout"
-  assertFileDoesNotExist "set_default_exit_code"
-  assertFileDoesNotExist "prepare_exit_codes"
-  assertFileDoesNotExist "validate_numeric_params"
+  assertFileDoesNotExist "validate_options"
+}
+
+test_set_options_invalid_arg() {
+  # given
+  mock_validate_options
+  mock_print_help
+
+  # when
+  local args=("-x")
+  $(set_options "${args[@]}")
+  local exit_code=$?
+
+  # then
+  assertEquals 1 ${exit_code}
+  assertFileExists "print_help"
+  assertFileDoesNotExist "validate_options"
 }
 
 test_set_options() {
   # given
-  exit_on_missing_command() {
-    touch "${OUT_DIR}/exit_on_missing_command"
-  }
-  set_default_timeout() {
-    touch "${OUT_DIR}/set_default_timeout"
-  }
-  set_default_exit_code() {
-    touch "${OUT_DIR}/set_default_exit_code"
-  }
-  prepare_exit_codes() {
-    touch "${OUT_DIR}/prepare_exit_codes"
-  }
-  validate_numeric_params() {
-    touch "${OUT_DIR}/validate_numeric_params"
-  }
+  mock_validate_options
 
   # when
   local args=("-c" "ls -l" "-t" "20" "-e" "1 2")
@@ -88,6 +70,31 @@ test_set_options() {
   assertEquals 20 "${TIMEOUT}"
   assertEquals "1 2" "${exit_codes}"
 
+  assertFileExists "validate_options"
+}
+
+test_validate_options() {
+  # given
+  exit_on_missing_command() {
+    touch "${OUT_DIR}/exit_on_missing_command"
+  }
+  set_default_timeout() {
+    touch "${OUT_DIR}/set_default_timeout"
+  }
+  set_default_exit_code() {
+    touch "${OUT_DIR}/set_default_exit_code"
+  }
+  prepare_exit_codes() {
+    touch "${OUT_DIR}/prepare_exit_codes"
+  }
+  validate_numeric_params() {
+    touch "${OUT_DIR}/validate_numeric_params"
+  }
+
+  # when
+  validate_options
+
+  # then
   assertFileExists "exit_on_missing_command"
   assertFileExists "set_default_timeout"
   assertFileExists "set_default_exit_code"
@@ -97,9 +104,7 @@ test_set_options() {
 
 test_exit_on_missing_command() {
   # given
-  print_help() {
-    touch "${OUT_DIR}/print_help"
-  }
+  mock_print_help
 
   # when
   local COMMAND=""
@@ -113,9 +118,7 @@ test_exit_on_missing_command() {
 
 test_exit_on_missing_command_does_not_exit() {
   # given
-  print_help() {
-    touch "${OUT_DIR}/print_help"
-  }
+  mock_print_help
 
   # when
   local COMMAND="ls -l"
@@ -209,6 +212,18 @@ test_is_number() {
   assertFalse "expecting a not to be a number" "is_number a"
   assertFalse "expecting abc not to be a number" "is_number abc"
   assertFalse "expecting '' not to be a number" "is_number ''"
+}
+
+mock_validate_options() {
+  validate_options() {
+    touch "${OUT_DIR}/validate_options"
+  }
+}
+
+mock_print_help() {
+  print_help() {
+    touch "${OUT_DIR}/print_help"
+  }
 }
 
 # Assert that the specified file is present

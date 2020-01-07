@@ -38,6 +38,10 @@ set_options() {
     esac
   done
 
+  validate_options
+}
+
+validate_options() {
   exit_on_missing_command
   set_default_timeout
   set_default_exit_code
