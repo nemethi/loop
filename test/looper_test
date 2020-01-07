@@ -200,6 +200,50 @@ test_prepare_exit_codes_removes_duplicates() {
   assertEquals "0 1 2" "${actual}"
 }
 
+test_validate_numeric_params() {
+  # given
+  local TIMEOUT=1
+  local EXIT_CODES=(1 2 3)
+
+  # when
+  $(validate_numeric_params)
+  local exit_code=$?
+
+  # then
+  assertEquals 0 ${exit_code}
+}
+
+test_validate_numeric_params_invalid_timeout() {
+  # given
+  local TIMEOUT="invalid"
+
+  # when
+  output=$(validate_numeric_params)
+  local exit_code=$?
+
+  #then
+  assertContains "${output}" "Invalid value 'invalid' for timeout."
+  assertContains "${output}" "looper: exiting"
+  assertNotContains "${output}" "for exit code."
+  assertEquals 1 ${exit_code}
+}
+
+test_validate_numeric_params_invalid_exit_codes() {
+  # given
+  local TIMEOUT=1
+  local EXIT_CODES=(1 x 3)
+
+  # when
+  output=$(validate_numeric_params)
+  local exit_code=$?
+
+  # then
+  assertContains "${output}" "Invalid value 'x' for exit code."
+  assertContains "${output}" "looper: exiting"
+  assertNotContains "${output}" "for timeout."
+  assertEquals 1 ${exit_code}
+}
+
 test_is_number() {
   assertTrue "expecting 0 to be a number" "is_number 0"
   assertTrue "expecting 1 to be a number" "is_number 1"
