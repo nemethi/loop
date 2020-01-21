@@ -41,6 +41,15 @@ set_options() {
   validate_options
 }
 
+exit_code_matches() {
+  local code="$1"
+  if [[ " ${EXIT_CODES[@]} " =~ " ${code} " ]]; then
+    echo 0
+  else
+    echo 1
+  fi
+}
+
 validate_options() {
   exit_on_missing_command
   set_default_timeout

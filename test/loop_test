@@ -73,6 +73,17 @@ test_set_options() {
   assertFileExists "validate_options"
 }
 
+test_exit_code_matches() {
+  local EXIT_CODES=(1 2 3)
+  for code in 1 2 3; do
+    assertEquals 0 $(exit_code_matches ${code})
+  done
+
+  for code in 0 4; do
+    assertEquals 1 $(exit_code_matches ${code})
+  done
+}
+
 test_validate_options() {
   # given
   exit_on_missing_command() {
@@ -245,17 +256,15 @@ test_validate_numeric_params_invalid_exit_codes() {
 }
 
 test_is_number() {
-  assertTrue "expecting 0 to be a number" "is_number 0"
-  assertTrue "expecting 1 to be a number" "is_number 1"
-  assertTrue "expecting 11 to be a number" "is_number 11"
-  assertTrue "expecting 10 to be a number" "is_number 10"
-  assertTrue "expecting 404 to be a number" "is_number 404"
+  for num in 0 1 11 10 404; do
+    local message="expected ${num} to be a number, but it was not"
+    assertTrue "${message}" "is_number ${num}"
+  done
 
-  assertFalse "expecting 01 not to be a number" "is_number 01"
-  assertFalse "expecting -1 not to be a number" "is_number -1"
-  assertFalse "expecting a not to be a number" "is_number a"
-  assertFalse "expecting abc not to be a number" "is_number abc"
-  assertFalse "expecting '' not to be a number" "is_number ''"
+  for not_num in 01 -1 a abc "''"; do
+    local message="expected ${not_num} not to be a number, but it was"
+    assertFalse "${message}" "is_number ${not_num}"
+  done
 }
 
 mock_validate_options() {
@@ -274,14 +283,16 @@ mock_print_help() {
 # in the OUT_DIR directory
 assertFileExists() {
   local filename="$1"
-  assertTrue "expected file '${filename}' to exist, but it does not" "[ -e ${OUT_DIR}/${filename} ]"
+  local message="expected file '${filename}' to exist, but it does not"
+  assertTrue "${message}" "[ -e ${OUT_DIR}/${filename} ]"
 }
 
 # Assert that the specified file is not present
 # in the OUT_DIR directory
 assertFileDoesNotExist() {
   local filename="$1"
-  assertTrue "expected file '${filename}' to not exist, but it does" "[ ! -e ${OUT_DIR}/${filename} ]"
+  local message="expected file '${filename}' to not exist, but it does"
+  assertTrue "${message}" "[ ! -e ${OUT_DIR}/${filename} ]"
 }
 
 source ./shunit2
