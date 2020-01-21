@@ -6,7 +6,7 @@ TIMEOUT=""
 
 print_help() {
 cat << HELP
-  Loops the specified command until it exits with 0 or with one of the specified exit codes.
+  Loops the specified command until it exits with one of the specified exit codes.
   The exit code '0' is implicitly included.
   Additionally, a timeout value may be supplied. Setting the timeout to '0' has the same effect as not supplying it.
   Usage: loop <-c command> [-t timeout][-e exit codes]
