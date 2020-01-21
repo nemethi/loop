@@ -15,7 +15,7 @@ oneTimeTearDown() {
 }
 
 setUp() {
-  source ../looper
+  source ../loop
 }
 
 tearDown() {

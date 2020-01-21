@@ -9,12 +9,12 @@ cat << HELP
   Loops the specified command until it exits with 0 or with one of the specified exit codes.
   The exit code '0' is implicitly included.
   Additionally, a timeout value may be supplied. Setting the timeout to '0' has the same effect as not supplying it.
-  Usage: looper <-c command> [-t timeout][-e exit codes]
+  Usage: loop <-c command> [-t timeout][-e exit codes]
 
   Examples:
-    looper "curl https://www.google.com"             -- Calls curl until it exits with 0.
-    looper "wget https://www.google.com" -e "4 5 6"  -- Calls wget until it exits with 0, 4, 5 or 6.
-    looper "ping https://www.google.com" -t 20 -e 1  -- Calls ping until it exits with 0 or 1, or 20 seconds has passed.
+    loop "curl https://www.google.com"             -- Calls curl until it exits with 0.
+    loop "wget https://www.google.com" -e "4 5 6"  -- Calls wget until it exits with 0, 4, 5 or 6.
+    loop "ping https://www.google.com" -t 20 -e 1  -- Calls ping until it exits with 0 or 1, or 20 seconds has passed.
 HELP
 }
 
