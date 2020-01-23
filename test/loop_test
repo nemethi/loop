@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OUT_DIR="./test_output"
+source common
 
 oneTimeSetUp() {
   if [[ ! -d "${OUT_DIR}" ]]; then
@@ -71,6 +71,47 @@ test_set_options() {
   assertEquals "1 2" "${exit_codes}"
 
   assertFileExists "validate_options"
+}
+
+test_loop_command_succeeds_first_time() {
+  # given
+  echo 0 > "${STUB_COMMAND_INPUT}"
+  local EXIT_CODES=(0)
+  local COMMAND="./stub_command"
+
+  # when
+  output=$(loop_command)
+
+  # then
+  assertEquals "success" "${output}"
+}
+
+test_loop_command_loops_once() {
+  # given
+  echo 1 > "${STUB_COMMAND_INPUT}"
+  local EXIT_CODES=(0)
+  local COMMAND="./stub_command"
+  expected=$(echo "failure"; echo "success")
+
+  # when
+  output=$(loop_command)
+
+  # then
+  assertEquals "${expected}" "${output}"
+}
+
+test_loop_command_exits_at_specified_code() {
+  # given
+  echo 2 > "${STUB_COMMAND_INPUT}"
+  local EXIT_CODES=(1)
+  local COMMAND="./stub_command"
+  expected=$(echo "failure"; echo "failure")
+
+  # when
+  output=$(loop_command)
+
+  # then
+  assertEquals "${expected}" "${output}"
 }
 
 test_exit_code_matches() {
@@ -295,4 +336,4 @@ assertFileDoesNotExist() {
   assertTrue "${message}" "[ ! -e ${OUT_DIR}/${filename} ]"
 }
 
-source ./shunit2
+source shunit2

@@ -8,7 +8,9 @@ print_help() {
 cat << HELP
   Loops the specified command until it exits with one of the specified exit codes.
   The exit code '0' is implicitly included.
-  Additionally, a timeout value may be supplied. Setting the timeout to '0' has the same effect as not supplying it.
+  Additionally, a timeout value may be supplied.
+  Setting the timeout to '0' has the same effect as not supplying it.
+
   Usage: loop <-c command> [-t timeout][-e exit codes]
 
   Examples:
@@ -20,11 +22,7 @@ HELP
 
 main() {
   set_options "$@"
-
-  echo "Command: ${COMMAND}"
-  echo "Timeout: ${TIMEOUT}"
-  echo "Exit codes: ${EXIT_CODES[@]}"
-  echo "Length of exit codes: ${#EXIT_CODES[@]}"
+  loop_command
 }
 
 set_options() {
@@ -39,6 +37,16 @@ set_options() {
   done
 
   validate_options
+}
+
+loop_command() {
+  local finished=1
+  local exit_code=0
+  until [[ ${finished} -eq 0 ]]; do
+    ${COMMAND}
+    exit_code=$?
+    finished=$(exit_code_matches ${exit_code})
+  done
 }
 
 exit_code_matches() {

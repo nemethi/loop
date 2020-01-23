@@ -1,0 +1,4 @@
+#!/bin/bash
+
+OUT_DIR="./test_output"
+STUB_COMMAND_INPUT="${OUT_DIR}/stub_command_input"

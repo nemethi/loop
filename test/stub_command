@@ -1,0 +1,16 @@
+#!/bin/bash
+
+source common
+
+value=$(cat "${STUB_COMMAND_INPUT}")
+
+if [[ ${value} -gt 0 ]]; then
+  new_value=$((value - 1))
+  echo ${new_value} > "${STUB_COMMAND_INPUT}"
+
+  echo "failure"
+  exit ${value}
+else
+  echo "success"
+  exit 0
+fi
