@@ -75,9 +75,9 @@ test_set_options() {
 
 test_loop_command_succeeds_first_time() {
   # given
-  echo 0 > "${STUB_COMMAND_INPUT}"
+  echo 0 > "${MOCK_COMMAND_INPUT}"
   local EXIT_CODES=(0)
-  local COMMAND="./stub_command"
+  local COMMAND="./mock_command"
 
   # when
   output=$(loop_command)
@@ -88,9 +88,9 @@ test_loop_command_succeeds_first_time() {
 
 test_loop_command_loops_once() {
   # given
-  echo 1 > "${STUB_COMMAND_INPUT}"
+  echo 1 > "${MOCK_COMMAND_INPUT}"
   local EXIT_CODES=(0)
-  local COMMAND="./stub_command"
+  local COMMAND="./mock_command"
   local expected=$(echo "failure"; echo "success")
 
   # when
@@ -102,9 +102,9 @@ test_loop_command_loops_once() {
 
 test_loop_command_exits_at_specified_code() {
   # given
-  echo 2 > "${STUB_COMMAND_INPUT}"
+  echo 2 > "${MOCK_COMMAND_INPUT}"
   local EXIT_CODES=(1)
-  local COMMAND="./stub_command"
+  local COMMAND="./mock_command"
   local expected=$(echo "failure"; echo "failure")
 
   # when

@@ -2,11 +2,11 @@
 
 source common
 
-value=$(cat "${STUB_COMMAND_INPUT}")
+value=$(cat "${MOCK_COMMAND_INPUT}")
 
 if [[ ${value} -gt 0 ]]; then
   new_value=$((value - 1))
-  echo ${new_value} > "${STUB_COMMAND_INPUT}"
+  echo ${new_value} > "${MOCK_COMMAND_INPUT}"
 
   echo "failure"
   exit ${value}
