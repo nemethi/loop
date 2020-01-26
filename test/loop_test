@@ -91,7 +91,7 @@ test_loop_command_loops_once() {
   echo 1 > "${STUB_COMMAND_INPUT}"
   local EXIT_CODES=(0)
   local COMMAND="./stub_command"
-  expected=$(echo "failure"; echo "success")
+  local expected=$(echo "failure"; echo "success")
 
   # when
   output=$(loop_command)
@@ -105,7 +105,21 @@ test_loop_command_exits_at_specified_code() {
   echo 2 > "${STUB_COMMAND_INPUT}"
   local EXIT_CODES=(1)
   local COMMAND="./stub_command"
-  expected=$(echo "failure"; echo "failure")
+  local expected=$(echo "failure"; echo "failure")
+
+  # when
+  output=$(loop_command)
+
+  # then
+  assertEquals "${expected}" "${output}"
+}
+
+test_loop_command_exits_on_timeout() {
+  # given
+  local TIMEOUT=1
+  local EXIT_CODES=(0)
+  local COMMAND="false && echo 'exited'"
+  local expected=""
 
   # when
   output=$(loop_command)
@@ -123,6 +137,17 @@ test_exit_code_matches() {
   for code in 0 4; do
     assertEquals 1 $(exit_code_matches ${code})
   done
+}
+
+test_is_timed_out() {
+  local timed_out=1
+  assertEquals 0 $(is_timed_out ${timed_out})
+
+  local timed_out_2=$(date +%s)
+  assertEquals 0 $(is_timed_out ${timed_out_2})
+
+  local not_timed_out=$(($(date +%s) + 10 ))
+  assertEquals 1 $(is_timed_out ${not_timed_out})
 }
 
 test_validate_options() {
@@ -302,7 +327,7 @@ test_is_number() {
     assertTrue "${message}" "is_number ${num}"
   done
 
-  for not_num in 01 -1 a abc "''"; do
+  for not_num in .2 0.5 01 -1 1,5 a abc "''"; do
     local message="expected ${not_num} not to be a number, but it was"
     assertFalse "${message}" "is_number ${not_num}"
   done

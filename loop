@@ -42,16 +42,31 @@ set_options() {
 loop_command() {
   local finished=1
   local exit_code=0
-  until [[ ${finished} -eq 0 ]]; do
+  local timed_out=1
+  local deadline=$(($(date +%s) + TIMEOUT))
+  until [[ ${timed_out} -eq 0 || ${finished} -eq 0 ]]; do
     ${COMMAND}
     exit_code=$?
     finished=$(exit_code_matches ${exit_code})
+    if [[ ${TIMEOUT} -ne 0 ]]; then
+      timed_out=$(is_timed_out ${deadline})
+    fi
   done
 }
 
 exit_code_matches() {
   local code="$1"
   if [[ " ${EXIT_CODES[@]} " =~ " ${code} " ]]; then
+    echo 0
+  else
+    echo 1
+  fi
+}
+
+is_timed_out() {
+  local timed_out_time="$1"
+  local current_time=$(date +%s)
+  if [[ ${timed_out_time} -le ${current_time} ]]; then
     echo 0
   else
     echo 1
