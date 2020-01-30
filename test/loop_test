@@ -24,6 +24,25 @@ tearDown() {
   fi
 }
 
+test_main() {
+  # given
+  set_options() {
+    echo "$@" > "${OUT_DIR}/set_options"
+  }
+  loop_command() {
+    touch "${OUT_DIR}/loop_command"
+  }
+  local expected="1 2 3"
+
+  # when
+  main 1 2 3
+
+  # then
+  assertFileExists "set_options"
+  assertEquals "${expected}" "$(cat "${OUT_DIR}/set_options")"
+  assertFileExists "loop_command"
+}
+
 test_set_options_help() {
   # given
   mock_validate_options
@@ -35,7 +54,7 @@ test_set_options_help() {
   local exit_code=$?
 
   # then
-  assertEquals 1 ${exit_code}
+  assertEquals 101 ${exit_code}
   assertFileExists "print_help"
   assertFileDoesNotExist "validate_options"
 }
@@ -51,7 +70,7 @@ test_set_options_invalid_arg() {
   local exit_code=$?
 
   # then
-  assertEquals 1 ${exit_code}
+  assertEquals 101 ${exit_code}
   assertFileExists "print_help"
   assertFileDoesNotExist "validate_options"
 }
@@ -81,9 +100,11 @@ test_loop_command_succeeds_first_time() {
 
   # when
   output=$(loop_command)
+  local exit_code=$?
 
   # then
   assertEquals "success" "${output}"
+  assertEquals 0 ${exit_code}
 }
 
 test_loop_command_loops_once() {
@@ -95,9 +116,11 @@ test_loop_command_loops_once() {
 
   # when
   output=$(loop_command)
+  local exit_code=$?
 
   # then
   assertEquals "${expected}" "${output}"
+  assertEquals 0 ${exit_code}
 }
 
 test_loop_command_exits_at_specified_code() {
@@ -109,9 +132,11 @@ test_loop_command_exits_at_specified_code() {
 
   # when
   output=$(loop_command)
+  local exit_code=$?
 
   # then
   assertEquals "${expected}" "${output}"
+  assertEquals 1 ${exit_code}
 }
 
 test_loop_command_exits_on_timeout() {
@@ -123,9 +148,11 @@ test_loop_command_exits_on_timeout() {
 
   # when
   output=$(loop_command)
+  local exit_code=$?
 
   # then
   assertEquals "${expected}" "${output}"
+  assertEquals 102 ${exit_code}
 }
 
 test_exit_code_matches() {

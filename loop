@@ -14,9 +14,15 @@ cat << HELP
   Usage: loop <-c command> [-t timeout][-e exit codes]
 
   Examples:
-    loop "curl https://www.google.com"             -- Calls curl until it exits with 0.
-    loop "wget https://www.google.com" -e "4 5 6"  -- Calls wget until it exits with 0, 4, 5 or 6.
-    loop "ping https://www.google.com" -t 20 -e 1  -- Calls ping until it exits with 0 or 1, or 20 seconds has passed.
+    loop -c "curl https://www.google.com"             -- Call curl until it exits with 0.
+    loop -c "wget https://www.google.com" -e "4 5 6"  -- Call wget until it exits with 0, 4, 5 or 6.
+    loop -c "ping https://www.google.com" -t 20 -e 1  -- Call ping until it exits with 0 or 1, or 20 seconds has passed.
+
+  Exit codes:
+    In normal cases, loop exits with the exit code returned by the specified command.
+    However, there are two special exit codes returned by loop:
+      101 – loop was called with an invalid option or with the -h option
+      102 – a timeout occurred
 HELP
 }
 
@@ -31,8 +37,8 @@ set_options() {
       c) COMMAND="$OPTARG" ;;
       t) TIMEOUT="$OPTARG" ;;
       e) EXIT_CODES=($OPTARG) ;;
-      h) print_help && exit 1 ;;
-      \?|*) print_help && exit 1 ;;
+      h) print_help && exit 101 ;;
+      \?|*) print_help && exit 101 ;;
     esac
   done
 
@@ -45,13 +51,19 @@ loop_command() {
   local timed_out=1
   local deadline=$(($(date +%s) + TIMEOUT))
   until [[ ${timed_out} -eq 0 || ${finished} -eq 0 ]]; do
-    ${COMMAND}
+    ${BASH} -c "${COMMAND}"
     exit_code=$?
     finished=$(exit_code_matches ${exit_code})
     if [[ ${TIMEOUT} -ne 0 ]]; then
       timed_out=$(is_timed_out ${deadline})
     fi
   done
+
+  if [[ ${timed_out} -eq 0 ]]; then
+    exit 102
+  else
+    exit ${exit_code}
+  fi
 }
 
 exit_code_matches() {
