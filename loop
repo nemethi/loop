@@ -96,7 +96,7 @@ validate_options() {
 exit_on_missing_command() {
   if [[ -z "${COMMAND}" ]]; then
     print_help
-    exit 1
+    exit 101
   fi
 }
 
@@ -121,14 +121,14 @@ validate_numeric_params() {
   if ! is_number "${TIMEOUT}"; then
     echo "Invalid value '${TIMEOUT}' for timeout."
     echo "looper: exiting"
-    exit 1
+    exit 101
   fi
 
   for elem in "${EXIT_CODES[@]}"; do
     if ! is_number "${elem}"; then
       echo "Invalid value '${elem}' for exit code."
       echo "looper: exiting"
-      exit 1
+      exit 101
     fi
   done
 }

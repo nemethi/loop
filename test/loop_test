@@ -216,7 +216,7 @@ test_exit_on_missing_command() {
   local exit_code=$?
 
   # then
-  assertEquals 1 ${exit_code}
+  assertEquals 101 ${exit_code}
   assertFileExists "print_help"
 }
 
@@ -329,7 +329,7 @@ test_validate_numeric_params_invalid_timeout() {
   assertContains "${output}" "Invalid value 'invalid' for timeout."
   assertContains "${output}" "looper: exiting"
   assertNotContains "${output}" "for exit code."
-  assertEquals 1 ${exit_code}
+  assertEquals 101 ${exit_code}
 }
 
 test_validate_numeric_params_invalid_exit_codes() {
@@ -345,7 +345,7 @@ test_validate_numeric_params_invalid_exit_codes() {
   assertContains "${output}" "Invalid value 'x' for exit code."
   assertContains "${output}" "looper: exiting"
   assertNotContains "${output}" "for timeout."
-  assertEquals 1 ${exit_code}
+  assertEquals 101 ${exit_code}
 }
 
 test_is_number() {
