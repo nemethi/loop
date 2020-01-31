@@ -9,7 +9,7 @@ if [[ ${value} -gt 0 ]]; then
   echo ${new_value} > "${MOCK_COMMAND_INPUT}"
 
   echo "failure"
-  exit ${value}
+  exit "${value}"
 else
   echo "success"
   exit 0

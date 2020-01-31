@@ -17,6 +17,8 @@ loop <-c command> [-t timeout][-e exit codes]
 
 ## Installing
 
+Requirement: bash 4.x+
+
 Copy the `loop` script to your `$PATH`.
 
 Display the help message to check the script's availability:
@@ -53,6 +55,9 @@ To run the tests change to the `test` directory and execute:
 ```
 The tests will work only if you are running them from the `test` directory,
 and if a copy of `loop` is available in the repo's root directory.
+
+
+Static code analysis was made with [shellcheck](https://github.com/koalaman/shellcheck).
 
 ## Authors
 

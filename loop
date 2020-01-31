@@ -34,9 +34,9 @@ main() {
 set_options() {
   while getopts ':c:t:e:h' opt; do
     case ${opt} in
-      c) COMMAND="$OPTARG" ;;
-      t) TIMEOUT="$OPTARG" ;;
-      e) EXIT_CODES=($OPTARG) ;;
+      c) COMMAND="${OPTARG}" ;;
+      t) TIMEOUT="${OPTARG}" ;;
+      e) EXIT_CODES=("${OPTARG}") ;;
       h) print_help && exit 101 ;;
       \?|*) print_help && exit 101 ;;
     esac
@@ -68,7 +68,7 @@ loop_command() {
 
 exit_code_matches() {
   local code="$1"
-  if [[ " ${EXIT_CODES[@]} " =~ " ${code} " ]]; then
+  if [[ ${EXIT_CODES[*]} =~ ${code} ]]; then
     echo 0
   else
     echo 1
@@ -107,14 +107,14 @@ set_default_timeout() {
 }
 
 set_default_exit_code() {
-  if [[ -z "${EXIT_CODES}" ]]; then
+  if [[ -z "${EXIT_CODES[*]}" ]]; then
     EXIT_CODES=(0)
   fi
 }
 
 prepare_exit_codes() {
   EXIT_CODES+=(0)
-  EXIT_CODES=($(printf "%s\n" "${EXIT_CODES[@]}" | sort -u))
+  mapfile -t EXIT_CODES < <(printf "%s\n" "${EXIT_CODES[@]}" | sort -u)
 }
 
 validate_numeric_params() {

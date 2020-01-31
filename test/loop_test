@@ -82,7 +82,7 @@ test_set_options() {
   # when
   local args=("-c" "ls -l" "-t" "20" "-e" "1 2")
   set_options "${args[@]}"
-  local exit_codes=$(echo "${EXIT_CODES[@]}")
+  local exit_codes="${EXIT_CODES[*]}"
 
   # then
   assertEquals "ls -l" "${COMMAND}"
@@ -158,23 +158,23 @@ test_loop_command_exits_on_timeout() {
 test_exit_code_matches() {
   local EXIT_CODES=(1 2 3)
   for code in 1 2 3; do
-    assertEquals 0 $(exit_code_matches ${code})
+    assertEquals 0 "$(exit_code_matches ${code})"
   done
 
   for code in 0 4; do
-    assertEquals 1 $(exit_code_matches ${code})
+    assertEquals 1 "$(exit_code_matches ${code})"
   done
 }
 
 test_is_timed_out() {
   local timed_out=1
-  assertEquals 0 $(is_timed_out ${timed_out})
+  assertEquals 0 "$(is_timed_out ${timed_out})"
 
   local timed_out_2=$(date +%s)
-  assertEquals 0 $(is_timed_out ${timed_out_2})
+  assertEquals 0 "$(is_timed_out "${timed_out_2}")"
 
   local not_timed_out=$(($(date +%s) + 10 ))
-  assertEquals 1 $(is_timed_out ${not_timed_out})
+  assertEquals 1 "$(is_timed_out ${not_timed_out})"
 }
 
 test_validate_options() {
@@ -262,7 +262,7 @@ test_set_default_exit_code() {
 
   # when
   set_default_exit_code
-  local actual=$(echo "${EXIT_CODES[@]}")
+  local actual="${EXIT_CODES[*]}"
 
   # then
   assertEquals "0" "${actual}"
@@ -274,7 +274,7 @@ test_set_default_exit_code_when_already_set() {
 
   # when
   set_default_exit_code
-  local actual=$(echo "${EXIT_CODES[@]}")
+  local actual="${EXIT_CODES[*]}"
 
   # then
   assertEquals "1" "${actual}"
@@ -286,7 +286,7 @@ test_prepare_exit_codes_adds_zero() {
 
   # when
   prepare_exit_codes
-  local actual=$(echo "${EXIT_CODES[@]}")
+  local actual="${EXIT_CODES[*]}"
 
   # then
   assertEquals "0" "${actual}"
@@ -298,7 +298,7 @@ test_prepare_exit_codes_removes_duplicates() {
 
   # when
   prepare_exit_codes
-  local actual=$(echo "${EXIT_CODES[@]}")
+  local actual="${EXIT_CODES[*]}"
 
   # then
   assertEquals "0 1 2" "${actual}"
