@@ -54,9 +54,7 @@ loop_command() {
     ${BASH} -c "${COMMAND}"
     exit_code=$?
     finished=$(exit_code_matches ${exit_code})
-    if [[ ${TIMEOUT} -ne 0 ]]; then
-      timed_out=$(is_timed_out ${deadline})
-    fi
+    timed_out=$(get_timed_out_value ${deadline})
   done
 
   if [[ ${timed_out} -eq 0 ]]; then
@@ -70,6 +68,15 @@ exit_code_matches() {
   local code="$1"
   if [[ ${EXIT_CODES[*]} =~ ${code} ]]; then
     echo 0
+  else
+    echo 1
+  fi
+}
+
+get_timed_out_value() {
+  local deadline="$1"
+  if [[ ${TIMEOUT} -ne 0 ]]; then
+    is_timed_out "${deadline}"
   else
     echo 1
   fi
