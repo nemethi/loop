@@ -10,14 +10,16 @@ The exit code '0' is implicitly included.
 Additionally, a timeout value may be supplied.
 Setting the timeout to '0' has the same effect as not supplying it.
 
+The sleep option may be used to make the script wait before executing the command again.
+
 Usage:
 ```
-loop <-c command> [-t timeout][-e exit codes]
+loop <-c command> [-t timeout][-e exit codes][-s sleep duration]
 ```
 
 ## Installing
 
-Requirement: bash 4.x+
+Requirements: bash 4.x+, [sleep](http://man7.org/linux/man-pages/man1/sleep.1.html)
 
 Copy the `loop` script to your `$PATH`.
 
@@ -37,6 +39,11 @@ loop -c "curl https://www.google.com"
 Call `wget` until it exits with 0, 4, 5 or 6:
 ```
 loop -c "wget https://www.google.com" -e "4 5 6"
+```
+
+Call `traceroute` until it exits with 0, "sleeping" 3 seconds between each call:
+```
+loop -c "traceroute google.com" -s 3
 ```
 
 Call `ping` until it exits with 0 or 1, or 20 seconds has passed:

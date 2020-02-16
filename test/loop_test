@@ -80,7 +80,7 @@ test_set_options() {
   mock_validate_options
 
   # when
-  local args=("-c" "ls -l" "-t" "20" "-e" "1 2")
+  local args=("-c" "ls -l" "-t" "20" "-e" "1 2" "-s" "3")
   set_options "${args[@]}"
   local exit_codes="${EXIT_CODES[*]}"
 
@@ -88,6 +88,7 @@ test_set_options() {
   assertEquals "ls -l" "${COMMAND}"
   assertEquals 20 "${TIMEOUT}"
   assertEquals "1 2" "${exit_codes}"
+  assertEquals 3 ${SLEEP}
 
   assertFileExists "validate_options"
 }
@@ -95,6 +96,7 @@ test_set_options() {
 test_loop_command_succeeds_first_time() {
   # given
   echo 0 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
   local EXIT_CODES=(0)
   local COMMAND="./mock_command"
 
@@ -110,6 +112,7 @@ test_loop_command_succeeds_first_time() {
 test_loop_command_loops_once() {
   # given
   echo 1 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
   local EXIT_CODES=(0)
   local COMMAND="./mock_command"
   local expected=$(echo "failure"; echo "success")
@@ -126,6 +129,7 @@ test_loop_command_loops_once() {
 test_loop_command_exits_at_specified_code() {
   # given
   echo 2 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
   local EXIT_CODES=(1)
   local COMMAND="./mock_command"
   local expected=$(echo "failure"; echo "failure")
@@ -141,10 +145,28 @@ test_loop_command_exits_at_specified_code() {
 
 test_loop_command_exits_on_timeout() {
   # given
+  local SLEEP=0
   local TIMEOUT=1
   local EXIT_CODES=(0)
   local COMMAND="false && echo 'exited'"
   local expected=""
+
+  # when
+  output=$(loop_command)
+  local exit_code=$?
+
+  # then
+  assertEquals "${expected}" "${output}"
+  assertEquals 102 ${exit_code}
+}
+
+test_loop_command_exits_on_timeout_because_sleep() {
+  # given
+  local SLEEP=2
+  local TIMEOUT=1
+  local EXIT_CODES=(0)
+  local COMMAND="echo 'exited' && false"
+  local expected=$(echo "exited")
 
   # when
   output=$(loop_command)
@@ -306,6 +328,7 @@ test_prepare_exit_codes_removes_duplicates() {
 
 test_validate_numeric_params() {
   # given
+  local SLEEP=0
   local TIMEOUT=1
   local EXIT_CODES=(1 2 3)
 
@@ -325,15 +348,34 @@ test_validate_numeric_params_invalid_timeout() {
   output=$(validate_numeric_params)
   local exit_code=$?
 
-  #then
-  assertContains "${output}" "Invalid value 'invalid' for timeout."
+  # then
+  assertContains "${output}" "looper: Invalid value 'invalid' for timeout."
   assertContains "${output}" "looper: exiting"
+  assertNotContains "${output}" "for sleep."
+  assertNotContains "${output}" "for exit code."
+  assertEquals 101 ${exit_code}
+}
+
+test_validate_numeric_params_invalid_sleep() {
+  # given
+  local TIMEOUT=0
+  local SLEEP="invalid"
+
+  # when
+  output=$(validate_numeric_params)
+  local exit_code=$?
+
+  # then
+  assertContains "${output}" "looper: Invalid value 'invalid' for sleep."
+  assertContains "${output}" "looper: exiting"
+  assertNotContains "${output}" "for timeout."
   assertNotContains "${output}" "for exit code."
   assertEquals 101 ${exit_code}
 }
 
 test_validate_numeric_params_invalid_exit_codes() {
   # given
+  local SLEEP=0
   local TIMEOUT=1
   local EXIT_CODES=(1 x 3)
 
@@ -342,9 +384,10 @@ test_validate_numeric_params_invalid_exit_codes() {
   local exit_code=$?
 
   # then
-  assertContains "${output}" "Invalid value 'x' for exit code."
+  assertContains "${output}" "looper: Invalid value 'x' for exit code."
   assertContains "${output}" "looper: exiting"
   assertNotContains "${output}" "for timeout."
+  assertNotContains "${output}" "for sleep."
   assertEquals 101 ${exit_code}
 }
 
