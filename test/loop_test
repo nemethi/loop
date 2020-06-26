@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2155,SC2091,SC2116,SC1091
 
 source common
 
@@ -22,13 +23,12 @@ tearDown() {
   if [[ -d "${OUT_DIR}" ]]; then
     find "${OUT_DIR}" -mindepth 1 -delete
   fi
+  OPTIND=""
 }
 
 test_main() {
   # given
-  set_options() {
-    echo "$@" > "${OUT_DIR}/set_options"
-  }
+  mock_set_options
   loop_command() {
     touch "${OUT_DIR}/loop_command"
   }
@@ -41,6 +41,24 @@ test_main() {
   assertFileExists "set_options"
   assertEquals "${expected}" "$(cat "${OUT_DIR}/set_options")"
   assertFileExists "loop_command"
+}
+
+test_main_with_pattern() {
+  # given
+  mock_set_options
+  loop_command_with_pattern() {
+    touch "${OUT_DIR}/loop_command_with_pattern"
+  }
+  local PATTERN="my_pattern"
+  local expected="-g ${PATTERN} -F -i -v"
+
+  # when
+  main -g "${PATTERN}" -F -i -v
+
+  # then
+  assertFileExists "set_options"
+  assertEquals "${expected}" "$(cat "${OUT_DIR}/set_options")"
+  assertFileExists "loop_command_with_pattern"
 }
 
 test_set_options_help() {
@@ -88,8 +106,60 @@ test_set_options() {
   assertEquals "ls -l" "${COMMAND}"
   assertEquals 20 "${TIMEOUT}"
   assertEquals "1 2" "${exit_codes}"
-  assertEquals 3 ${SLEEP}
+  assertEquals 3 "${SLEEP}"
 
+  assertFileExists "validate_options"
+}
+
+test_set_options_sets_pattern_types_correctly() {
+  # given
+  mock_validate_options
+
+  # when
+  call_set_options_with_arg "-E"
+
+  # then
+  assertEquals "-E" "${PATTERN_TYPE}"
+
+  # when
+  call_set_options_with_arg "-F"
+
+  # then
+  assertEquals "-F" "${PATTERN_TYPE}"
+
+  # when
+  call_set_options_with_arg "-G"
+
+  # then
+  assertEquals "-G" "${PATTERN_TYPE}"
+  assertFileExists "validate_options"
+}
+
+test_set_options_sets_pattern_type_to_last_specified() {
+  # given
+  mock_validate_options
+
+  # when
+  local args=("-E" "-F" "-G")
+  set_options "${args[@]}"
+
+  # then
+  assertEquals "-G" "${PATTERN_TYPE}"
+  assertFileExists "validate_options"
+}
+
+test_set_options_sets_other_pattern_related_settings() {
+  # given
+  mock_validate_options
+
+  # when
+  local args=("-g" "test_pattern" "-i" "-v")
+  set_options "${args[@]}"
+
+  # then
+  assertEquals "test_pattern" "${PATTERN}"
+  assertTrue "[ -n ${IGNORE_CASE} ]"
+  assertTrue "[ -n ${INVERT_MATCH} ]"
   assertFileExists "validate_options"
 }
 
@@ -177,6 +247,77 @@ test_loop_command_exits_on_timeout_because_sleep() {
   assertEquals 102 ${exit_code}
 }
 
+test_loop_with_pattern_succeeds_first_time() {
+  # given
+  echo 0 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
+  local PATTERN_TYPE="-F"
+  local IGNORE_CASE=1
+  local PATTERN="SUCCESS"
+  local COMMAND="./mock_command"
+
+  # when
+  output=$(loop_command_with_pattern)
+  local exit_code=$?
+
+  # then
+  assertEquals "success" "${output}"
+  assertEquals 103 ${exit_code}
+}
+
+test_loop_with_pattern_loops_once() {
+  # given
+  echo 1 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
+  local PATTERN_TYPE="-G"
+  local PATTERN="^s.*s$"
+  local COMMAND="./mock_command"
+  local expected=$(echo "failure"; echo "success")
+
+  # when
+  output=$(loop_command_with_pattern)
+  local exit_code=$?
+
+  # then
+  assertEquals "${expected}" "${output}"
+  assertEquals 103 ${exit_code}
+}
+
+test_loop_with_pattern_invert_match() {
+  # given
+  echo 1 > "${MOCK_COMMAND_INPUT}"
+  local SLEEP=0
+  local PATTERN_TYPE="-F"
+  local PATTERN="success"
+  local INVERT_MATCH=1
+  local COMMAND="./mock_command"
+  local expected=$(echo "failure")
+
+  # when
+  output=$(loop_command_with_pattern)
+  local exit_code=$?
+
+  # then
+  assertEquals "${expected}" "${output}"
+  assertEquals 103 ${exit_code}
+}
+
+test_loop_with_pattern_exits_on_timeout() {
+  # given
+  local SLEEP=0
+  local TIMEOUT=1
+  local PATTERN_TYPE="-F"
+  local PATTERN="no"
+  local COMMAND="echo 'yes'"
+
+  # when
+  output=$(loop_command_with_pattern)
+  local exit_code=$?
+
+  # then
+  assertEquals 102 ${exit_code}
+}
+
 test_exit_code_matches() {
   local EXIT_CODES=(1 2 3)
   for code in 1 2 3; do
@@ -186,6 +327,113 @@ test_exit_code_matches() {
   for code in 0 4; do
     assertEquals 1 "$(exit_code_matches ${code})"
   done
+}
+
+test_search_in_output() {
+  # given
+  local filename="${OUT_DIR}/test_file"
+  create_text_file "${filename}"
+  local PATTERN="BBB"
+  local PATTERN_TYPE="-G"
+  local IGNORE_CASE=""
+  local INVERT_MATCH=""
+
+  # when
+  local exit_code=$(search_in_output "${filename}")
+
+  # then
+  assertEquals 0 "${exit_code}"
+}
+
+test_search_in_output_invert_match() {
+  # given
+  local filename="${OUT_DIR}/test_file"
+  create_text_file "${filename}"
+  local PATTERN="BBB"
+  local PATTERN_TYPE="-G"
+  local IGNORE_CASE=""
+  local INVERT_MATCH=0
+
+  # when
+  local exit_code=$(search_in_output "${filename}")
+
+  # then
+  assertEquals 1 "${exit_code}"
+}
+
+test_search_in_output_invalid_file() {
+  # given
+  local filename="${OUT_DIR}/invalid_file"
+  local PATTERN="my_pattern"
+  local PATTERN_TYPE="-G"
+  local IGNORE_CASE=""
+  local INVERT_MATCH=""
+
+  # when
+  local exit_code=$(search_in_output "${filename}")
+
+  # then
+  assertEquals 2 "${exit_code}"
+}
+
+test_assemble_grep_command_simple() {
+  # given
+  local filename="filename"
+  local PATTERN="test_pattern"
+  local PATTERN_TYPE="-G"
+
+  # when
+  local actual=$(assemble_grep_command "${filename}")
+
+  # then
+  local expected="grep -q -s -G -e \"test_pattern\" ${filename}"
+  assertEquals "${expected}" "${actual}"
+}
+
+test_assemble_grep_command_ignore_case() {
+  # given
+  local filename="filename"
+  local PATTERN="test_pattern"
+  local PATTERN_TYPE="-G"
+  local IGNORE_CASE=0
+
+  # when
+  local actual=$(assemble_grep_command "${filename}")
+
+  # then
+  local expected="grep -q -s -G -e \"test_pattern\" -i ${filename}"
+  assertEquals "${expected}" "${actual}"
+}
+
+test_assemble_grep_command_invert_match() {
+  # given
+  local filename="filename"
+  local PATTERN="test_pattern"
+  local PATTERN_TYPE="-G"
+  local INVERT_MATCH=0
+
+  # when
+  local actual=$(assemble_grep_command "${filename}")
+
+  # then
+  local expected="! grep -q -s -G -e \"test_pattern\" ${filename}"
+  assertEquals "${expected}" "${actual}"
+}
+
+test_assemble_grep_command_all_options_combined() {
+  # given
+  local filename="filename"
+  local PATTERN="test_pattern"
+  local PATTERN_TYPE="-G"
+  local IGNORE_CASE=0
+  local INVERT_MATCH=0
+
+  # when
+  local actual=$(assemble_grep_command "${filename}")
+
+  # then
+  local expected="! grep -q -s -G -e \"test_pattern\" -i ${filename}"
+  assertEquals "${expected}" "${actual}"
 }
 
 test_is_timed_out() {
@@ -210,6 +458,12 @@ test_validate_options() {
   set_default_exit_code() {
     touch "${OUT_DIR}/set_default_exit_code"
   }
+  set_default_sleep() {
+    touch "${OUT_DIR}/set_default_sleep"
+  }
+  set_default_pattern_type() {
+    touch "${OUT_DIR}/set_default_pattern_type"
+  }
   prepare_exit_codes() {
     touch "${OUT_DIR}/prepare_exit_codes"
   }
@@ -224,6 +478,8 @@ test_validate_options() {
   assertFileExists "exit_on_missing_command"
   assertFileExists "set_default_timeout"
   assertFileExists "set_default_exit_code"
+  assertFileExists "set_default_sleep"
+  assertFileExists "set_default_pattern_type"
   assertFileExists "prepare_exit_codes"
   assertFileExists "validate_numeric_params"
 }
@@ -300,6 +556,50 @@ test_set_default_exit_code_when_already_set() {
 
   # then
   assertEquals "1" "${actual}"
+}
+
+test_set_default_sleep() {
+  # given
+  local SLEEP=""
+
+  # when
+  set_default_sleep
+
+  # then
+  assertEquals 0 ${SLEEP}
+}
+
+test_set_default_sleep_when_already_set() {
+  # given
+  local SLEEP="1"
+
+  # when
+  set_default_sleep
+
+  # then
+  assertEquals 1 ${SLEEP}
+}
+
+test_set_default_pattern_type() {
+  # given
+  local PATTERN_TYPE=""
+
+  # when
+  set_default_pattern_type
+
+  # then
+  assertEquals "-G" "${PATTERN_TYPE}"
+}
+
+test_set_default_pattern_type_when_already_set() {
+  # given
+  local PATTERN_TYPE="-F"
+
+  # when
+  set_default_pattern_type
+
+  # then
+  assertEquals "-F" "${PATTERN_TYPE}"
 }
 
 test_prepare_exit_codes_adds_zero() {
@@ -413,6 +713,23 @@ mock_print_help() {
   print_help() {
     touch "${OUT_DIR}/print_help"
   }
+}
+
+mock_set_options() {
+  set_options() {
+    echo "$@" > "${OUT_DIR}/set_options"
+  }
+}
+call_set_options_with_arg() {
+  OPTIND=""
+  local args=("${1}")
+  set_options "${args[@]}"
+}
+
+create_text_file() {
+  local filename="$1"
+  echo "AAA" >> "${filename}"
+  echo "BBB" >> "${filename}"
 }
 
 # Assert that the specified file is present

@@ -1,47 +1,89 @@
 #!/bin/bash
+# shellcheck disable=SC2155
 
 COMMAND=""
 EXIT_CODES=()
 TIMEOUT=""
 SLEEP=""
+PATTERN=""
+PATTERN_TYPE=""
+IGNORE_CASE=""
+INVERT_MATCH=""
 
 print_help() {
 cat << HELP
-  Loop the specified command until it exits with one of the specified exit codes.
-  The exit code '0' is implicitly included.
-  Additionally, a timeout value may be supplied.
-  Setting the timeout to '0' has the same effect as not supplying it.
-  The sleep option may be used to make the script wait before executing the command again.
+  Loop the specified command until it exits with one of the specified exit codes
+  or a pattern is matched in its output.
 
-  Usage: loop <-c command> [-t timeout][-e exit codes][-s sleep duration]
+  Usage: loop <-c command> [options]
+
+  Common options:
+    -h            Show this help message.
+    -s SECONDS    Set the sleep duration to make the script wait
+                  before executing the command again.
+    -t SECONDS    Set the timeout after which the loop stops executing the command.
+                  Setting it to '0' has the same effect as not setting it.
+
+  Exit code options:
+    -e CODE...    A space-separated list of exit codes which
+                  make the loop stop if one of them matches.
+                  The exit code '0' is implicitly included.
+                  This option has no effect if a pattern is specified.
+
+  Pattern matching options:
+    -g PATTERN    Enable pattern matching with the specified pattern.
+                  The command will be looped UNTIL the pattern matches.
+    -i            Ignore case distinctions.
+    -v            Invert pattern matching.
+                  The command will be looped WHILE the pattern matches.
+    -E            Interpret PATTERN as an extended regular expression.
+    -F            Interpret PATTERN as a fixed string.
+    -G            Interpret PATTERN as a basic regular expression.
+                  This is the default.
 
   Examples:
-    loop -c "curl https://www.google.com"             -- Call curl until it exits with 0.
-    loop -c "wget https://www.google.com" -e "4 5 6"  -- Call wget until it exits with 0, 4, 5 or 6.
-    loop -c "traceroute google.com" -s 3              -- Call traceroute until it exits with 0,
+    loop -c "curl https://www.google.com"             -- call curl until it exits with 0.
+    loop -c "wget https://www.google.com" -e "4 5 6"  -- call wget until it exits with 0, 4, 5 or 6.
+    loop -c "traceroute google.com" -s 3              -- call traceroute until it exits with 0,
                                                          "sleeping" 3 seconds between each call.
-    loop -c "ping https://www.google.com" -t 20 -e 1  -- Call ping until it exits with 0 or 1, or 20 seconds has passed.
+    loop -c "ping https://www.google.com" -t 20 -e 1  -- call ping until it exits with 0 or 1,
+                                                         or 20 seconds has passed.
+    loop -c "./script.sh" -g ok -i                    -- call script.sh until its output
+                                                         contains "ok" case-insensitively.
+    loop -c "./script.sh" -g "^a.*z$" -E -v           -- call script.sh while its output contains
+                                                         a line that matches the regexp.
 
   Exit codes:
-    In normal cases, loop exits with the exit code returned by the specified command.
-    However, there are two special exit codes returned by loop:
+    in normal cases, loop exits with the exit code returned by the specified command.
+    (except when looping is pattern-based)
+    However, there are some special exit codes returned by loop:
       101 – loop was called with an invalid option or with the -h option
       102 – a timeout occurred
+      103 – the pattern was found/not found in the output (depending on the -v option)
+      104 – the grep command failed with an error (e.g. invalid file)
 HELP
 }
 
 main() {
   set_options "$@"
-  loop_command
+  if [[ -z "${PATTERN}" ]]; then
+    loop_command
+  else
+    loop_command_with_pattern
+  fi
 }
 
 set_options() {
-  while getopts ':c:t:e:s:h' opt; do
+  while getopts ':c:t:e:s:g:ivEFGh' opt; do
     case ${opt} in
       c) COMMAND="${OPTARG}" ;;
       t) TIMEOUT="${OPTARG}" ;;
       e) EXIT_CODES=("${OPTARG}") ;;
       s) SLEEP="${OPTARG}" ;;
+      g) PATTERN="${OPTARG}" ;;
+      E|F|G) local index=$((OPTIND-1)); PATTERN_TYPE="${!index}" ;;
+      i) IGNORE_CASE=0 ;;
+      v) INVERT_MATCH=0 ;;
       h) print_help && exit 101 ;;
       \?|*) print_help && exit 101 ;;
     esac
@@ -80,6 +122,51 @@ exit_code_matches() {
   fi
 }
 
+loop_command_with_pattern() {
+  local finished=1
+  local timed_out=1
+  local deadline=$(($(date +%s) + TIMEOUT))
+  local output_file=""
+
+  until [[ ${timed_out} -eq 0 || ${finished} -eq 0 || ${finished} -eq 2 ]]; do
+    output_file=$(mktemp)
+    ${BASH} -c "${COMMAND} | tee ${output_file}"
+    sleep "${SLEEP}"
+    finished=$(search_in_output "${output_file}")
+    timed_out=$(get_timed_out_value ${deadline})
+  done
+
+  if [[ ${timed_out} -eq 0 ]]; then
+    exit 102
+  elif [[ ${finished} -eq 0 ]]; then
+    exit 103
+  elif [[ ${finished} -eq 2 ]]; then
+    exit 104
+  fi
+}
+
+search_in_output() {
+  local output_file="$1"
+  local grep_command=$(assemble_grep_command "${output_file}")
+  ${BASH} -c "${grep_command}"
+  echo $?
+}
+
+assemble_grep_command() {
+  local filename="$1"
+  local grep_command="grep -q -s ${PATTERN_TYPE} -e \"${PATTERN}\""
+
+  if [[ -n ${IGNORE_CASE} ]]; then
+    grep_command="${grep_command} -i"
+  fi
+
+  if [[ -n ${INVERT_MATCH} ]]; then
+    grep_command="! ${grep_command}"
+  fi
+
+  echo "${grep_command} ${filename}"
+}
+
 get_timed_out_value() {
   local deadline="$1"
   if [[ ${TIMEOUT} -ne 0 ]]; then
@@ -104,6 +191,7 @@ validate_options() {
   set_default_timeout
   set_default_exit_code
   set_default_sleep
+  set_default_pattern_type
   prepare_exit_codes
   validate_numeric_params
 }
@@ -130,6 +218,12 @@ set_default_exit_code() {
 set_default_sleep() {
   if [[ -z "${SLEEP}" ]]; then
     SLEEP=0
+  fi
+}
+
+set_default_pattern_type() {
+  if [[ -z "${PATTERN_TYPE}" ]]; then
+    PATTERN_TYPE="-G"
   fi
 }
 
